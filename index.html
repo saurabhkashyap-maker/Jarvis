@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Assistant - Answers Anything</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 30px;
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .mic-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 50px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            margin: 20px auto;
+        }
+        .mic-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+        }
+        .mic-btn:active {
+            transform: scale(0.95);
+        }
+        .listening {
+            animation: pulse 1.5s infinite;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        #status {
+            margin: 20px 0;
+            font-size: 18px;
+            color: #555;
+            font-weight: 500;
+        }
+        #heard {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 15px;
+            margin: 15px 0;
+            text-align: left;
+        }
+        #heard-label {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        #heard-text {
+            color: #333;
+            font-size: 16px;
+        }
+        #response {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 15px 0;
+            text-align: left;
+            min-height: 100px;
+        }
+        #response-label {
+            font-weight: bold;
+            color: #764ba2;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        #response-text {
+            color: #333;
+            line-height: 1.5;
+            font-size: 16px;
+        }
+        .api-key-input {
+            margin: 20px 0;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            width: 100%;
+            font-size: 14px;
+        }
+        .note {
+            font-size: 12px;
+            color: #999;
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ AI Voice Assistant</h1>
+        <div class="subtitle">Ask me anything - powered by Gemini AI</div>
+        
+        <input type="password" id="apiKey" class="api-key-input" placeholder="Enter your Gemini API Key" autocomplete="off">
+        <button onclick="saveApiKey()">Save Key</button>
+        
+        <div>
+            <button class="mic-btn" id="listenBtn">🎤</button>
+        </div>
+        
+        <div id="status">🔴 Click microphone and speak</div>
+        
+        <div id="heard" style="display:none;">
+            <div id="heard-label">You said:</div>
+            <div id="heard-text"></div>
+        </div>
+        
+        <div id="response">
+            <div id="response-label">🤖 Assistant:</div>
+            <div id="response-text">Ready to help you with anything! Click the mic and ask me a question.</div>
+        </div>
+        
+        <div class="note">
+            💡 Get your free Gemini API key from <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a><br>
+            Your key is stored only in your browser (localStorage)
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const listenBtn = document.getElementById('listenBtn');
+        const statusDiv = document.getElementById('status');
+        const heardDiv = document.getElementById('heard');
+        const heardText = document.getElementById('heard-text');
+        const responseTextDiv = document.getElementById('response-text');
+        const apiKeyInput = document.getElementById('apiKey');
+        
+        let apiKey = localStorage.getItem('gemini_api_key');
+        if (apiKey) apiKeyInput.value = apiKey;
+        
+        function saveApiKey() {
+            apiKey = apiKeyInput.value.trim();
+            if (apiKey) {
+                localStorage.setItem('gemini_api_key', apiKey);
+                statusDiv.innerHTML = '✅ API key saved! Click mic to start.';
+                setTimeout(() => {
+                    if (statusDiv.innerHTML === '✅ API key saved! Click mic to start.') {
+                        statusDiv.innerHTML = '🔴 Click microphone and speak';
+                    }
+                }, 2000);
+            } else {
+                alert('Please enter a valid API key');
+            }
+        }
+        
+        // Check browser support
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            statusDiv.innerText = '❌ Browser not supported. Please use Chrome/Edge.';
+            listenBtn.disabled = true;
+            listenBtn.style.opacity = '0.5';
+        }
+        
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.continuous = false;
+        recognition.maxAlternatives = 1;
+        
+        // Voice output
+        function speak(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.95;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utterance);
+        }
+        
+        // Call Gemini API
+        async function askGemini(question) {
+            if (!apiKey) {
+                return "Please enter your Gemini API key first. Get one for free from Google AI Studio.";
+            }
+            
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+            
+            const requestBody = {
+                contents: [{
+                    parts: [{
+                        text: `You are a helpful voice assistant. Answer concisely and naturally (2-3 sentences max if possible). User asked: ${question}`
+                    }]
+                }],
+                generationConfig: {
+                    temperature: 0.7,
+                    maxOutputTokens: 150,
+                }
+            };
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('API Error:', data.error);
+                    if (data.error.message.includes('API key')) {
+                        return "Invalid API key. Please check your key and try again.";
+                    }
+                    return `Error: ${data.error.message}`;
+                }
+                
+                if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                    return data.candidates[0].content.parts[0].text;
+                } else {
+                    return "Sorry, I couldn't generate a response. Please try again.";
+                }
+            } catch (error) {
+                console.error('Network error:', error);
+                return "Network error. Please check your internet connection.";
+            }
+        }
+        
+        // Process command with AI
+        async function processCommand(command) {
+            responseTextDiv.innerHTML = '🤔 Thinking...';
+            const aiResponse = await askGemini(command);
+            return aiResponse;
+        }
+        
+        // When speech is recognized
+        recognition.onresult = async (event) => {
+            const spoken = event.results[0][0].transcript;
+            heardText.innerText = spoken;
+            heardDiv.style.display = 'block';
+            statusDiv.innerHTML = '🤔 Processing your question...';
+            
+            const reply = await processCommand(spoken);
+            responseTextDiv.innerHTML = reply;
+            speak(reply);
+            statusDiv.innerHTML = '✅ Done! Click mic to ask another question';
+            
+            setTimeout(() => {
+                if (statusDiv.innerHTML === '✅ Done! Click mic to ask another question') {
+                    statusDiv.innerHTML = '🔴 Click microphone to speak';
+                }
+            }, 3000);
+        };
+        
+        recognition.onerror = (event) => {
+            console.error('Recognition error:', event.error);
+            let errorMsg = '';
+            switch(event.error) {
+                case 'not-allowed':
+                    errorMsg = 'Microphone access denied. Please allow microphone access.';
+                    break;
+                case 'no-speech':
+                    errorMsg = 'No speech detected. Please try again.';
+                    break;
+                default:
+                    errorMsg = `Error: ${event.error}`;
+            }
+            statusDiv.innerHTML = errorMsg;
+            responseTextDiv.innerHTML = errorMsg;
+            listenBtn.classList.remove('listening');
+        };
+        
+        recognition.onstart = () => {
+            statusDiv.innerHTML = '🎤 Listening... Speak now';
+            listenBtn.classList.add('listening');
+            heardDiv.style.display = 'none';
+            responseTextDiv.innerHTML = '🎧 I\'m listening...';
+        };
+        
+        recognition.onend = () => {
+            listenBtn.classList.remove('listening');
+            if (statusDiv.innerHTML === '🎤 Listening... Speak now') {
+                statusDiv.innerHTML = '🔴 Click microphone to speak';
+            }
+        };
+        
+        listenBtn.onclick = () => {
+            if (!apiKey) {
+                statusDiv.innerHTML = '⚠️ Please enter your Gemini API key first!';
+                responseTextDiv.innerHTML = 'Enter your API key above to start using the assistant.';
+                return;
+            }
+            try {
+                recognition.start();
+            } catch (e) {
+                console.log('Recognition already started');
+            }
+        };
+        
+        // Test API key on load if exists
+        if (apiKey) {
+            statusDiv.innerHTML = '✅ Ready! Click mic and ask anything.';
+        }
+    </script>
+</body>
+</html>
